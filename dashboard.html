@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import emoji, chart as render_chart %}
+{% block title %}Dashboard{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">{% endblock %}
+{% block content %}
+<!-- Greeting Card -->
+<div class="greeting-card">
+  <div class="greeting-content">
+    <div class="greeting-pill"><span class="pulse-dot"></span> Operations Command</div>
+    <h1>Welcome back, {{ g.user.full_name or 'Port Operator' }} 👋</h1>
+    <p class="greeting-sub">Autonomous Port Digital Twin Operations Center · Real-time simulation & multi-agent coordination.</p>
+  </div>
+  <div class="greeting-actions">
+    <a class="btn btn-primary" href="{{ url_for('scenarios.scenario') }}">{{ emoji('bolt', 18) }} Run Scenario</a>
+    <a class="btn" href="{{ url_for('port_input.port_input') }}">{{ emoji('anchor', 18) }} Edit Port</a>
+  </div>
+</div>
+
+<!-- 6 Perfectly Aligned KPI Cards -->
+<div class="grid grid-6 kpis">
+  <div class="card kpi">{{ emoji('ship', 36) }}<div><div class="v">{{ stats.ships }}</div><div class="l">Total Ships</div></div></div>
+  <div class="card kpi">{{ emoji('anchor', 36) }}<div><div class="v">{{ stats.berths }}</div><div class="l">Available Berths</div></div></div>
+  <div class="card kpi">{{ emoji('crane', 36) }}<div><div class="v">{{ stats.cranes_ok }}<span class="faint" style="font-size:0.95rem"> / {{ stats.cranes_total }}</span></div><div class="l">Operational Cranes</div></div></div>
+  <div class="card kpi">{{ emoji('container', 36) }}<div><div class="v">{{ stats.containers }}</div><div class="l">Total Containers</div></div></div>
+  <div class="card kpi">{{ emoji('chart', 36) }}<div><div class="v">{{ stats.yard_pct }}%</div><div class="l">Yard Occupancy</div></div></div>
+  <div class="card kpi">{{ emoji('truck', 36) }}<div><div class="v">{{ stats.truck_queue }}</div><div class="l">Truck Queue Peak</div></div></div>
+</div>
+
+<!-- Pastel Analytical Charts (2x2 Grid) -->
+{% set c_data = charts or chart %}
+{% if c_data and c_data.plans %}
+<div class="grid grid-2" style="margin-top:1.25rem">
+  <div class="chart-card">{{ render_chart(c_data.plans, 'ch-plans') }}</div>
+  <div class="chart-card">{{ render_chart(c_data.yard, 'ch-yard') }}</div>
+</div>
+<div class="grid grid-2" style="margin-top:1rem">
+  <div class="chart-card">{{ render_chart(c_data.util, 'ch-util') }}</div>
+  <div class="chart-card">{{ render_chart(c_data.throughput, 'ch-throughput') }}</div>
+</div>
+{% else %}
+<div class="empty" style="margin-top:1.5rem">{{ emoji('trend', 60) }}<p>No simulation charts yet. Run a scenario to generate analytics.</p><a class="btn btn-primary" href="{{ url_for('scenarios.scenario') }}">Run a scenario</a></div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}

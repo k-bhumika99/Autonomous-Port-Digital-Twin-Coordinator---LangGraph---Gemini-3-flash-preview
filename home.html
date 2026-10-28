@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import emoji, icon %}
+{% block title %}Autonomous Port Digital Twin Coordinator{% endblock %}
+
+{% block content %}
+<div class="home-page-container">
+  <!-- Exact Full Hero Banner - Vibrant Port Water, Cranes, Ships, Towers & Cards -->
+  <div class="home-hero-card">
+    <div class="home-hero-image-wrap">
+      <img src="{{ url_for('static', filename='images/ui/home_hero_crystal_4k.jpg') }}" alt="PortAI - Autonomous Port Digital Twin Coordinator" class="hero-full-banner-img">
+      <!-- Clickable interactive hotspots overlay -->
+      <a href="{{ url_for('auth.signup') }}" class="hotspot-get-started" title="Get Started"></a>
+      <a href="#features" class="hotspot-watch-demo" title="Watch Demo"></a>
+      <a href="#features" class="hotspot-card-1" title="Digital Twin Simulation"></a>
+      <a href="#features" class="hotspot-card-2" title="Six AI Agents"></a>
+      <a href="#features" class="hotspot-card-3" title="Scenario Analysis"></a>
+      <a href="#features" class="hotspot-card-4" title="Decision Validation"></a>
+    </div>
+  </div>
+
+  <!-- Detailed Feature Sections wrapped in responsive container -->
+  <div class="home-sections-wrap">
+    <section class="section" id="features" style="margin-top:2rem">
+      <div style="text-align:center;max-width:700px;margin:0 auto 2.5rem">
+        <span class="hero-pill-badge" style="display:inline-flex;padding:0.35rem 0.95rem;background:#fbf0ec;border:1px solid #f2d8cf;border-radius:999px;font-size:0.78rem;font-weight:600;color:#a34e36">Intelligent Operations</span>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:2rem;margin:0.5rem 0 0.8rem;color:#0f172a">How the Multi-Agent Port Twin Works</h2>
+        <p style="color:#64748b;font-size:1rem;margin:0">Six specialized autonomous agents collaborate in real-time through an interactive LangGraph state workflow.</p>
+      </div>
+
+      <div class="grid grid-3" style="gap:1.5rem">
+        <div class="card" style="padding:1.6rem;border-radius:18px;border:1px solid #f0e6df;background:#fff;box-shadow:0 6px 20px rgba(15,23,42,0.03)">
+          <div style="width:48px;height:48px;border-radius:14px;background:#fbf0ec;display:flex;align-items:center;justify-content:center;margin-bottom:1.2rem;color:#a34e36">
+            {{ emoji('ship', 30) }}
+          </div>
+          <h3 style="font-size:1.1rem;margin:0 0 0.5rem;color:#0f172a">Ship &amp; Berth Coordination</h3>
+          <p style="font-size:0.88rem;color:#64748b;line-height:1.55;margin:0">Monitors ETA variations, detects tidal and draft constraints, and proactively reassigns berths before congestion propagates.</p>
+        </div>
+
+        <div class="card" style="padding:1.6rem;border-radius:18px;border:1px solid #f0e6df;background:#fff;box-shadow:0 6px 20px rgba(15,23,42,0.03)">
+          <div style="width:48px;height:48px;border-radius:14px;background:#fbf0ec;display:flex;align-items:center;justify-content:center;margin-bottom:1.2rem;color:#a34e36">
+            {{ emoji('crane', 30) }}
+          </div>
+          <h3 style="font-size:1.1rem;margin:0 0 0.5rem;color:#0f172a">Quay Crane Optimization</h3>
+          <p style="font-size:0.88rem;color:#64748b;line-height:1.55;margin:0">Balances crane moves per hour across bays, compensates for mechanical downtime, and prevents crane clash intervals.</p>
+        </div>
+
+        <div class="card" style="padding:1.6rem;border-radius:18px;border:1px solid #f0e6df;background:#fff;box-shadow:0 6px 20px rgba(15,23,42,0.03)">
+          <div style="width:48px;height:48px;border-radius:14px;background:#fbf0ec;display:flex;align-items:center;justify-content:center;margin-bottom:1.2rem;color:#a34e36">
+            {{ emoji('container', 30) }}
+          </div>
+          <h3 style="font-size:1.1rem;margin:0 0 0.5rem;color:#0f172a">Yard &amp; Buffer Management</h3>
+          <p style="font-size:0.88rem;color:#64748b;line-height:1.55;margin:0">Tracks TEU stack occupancy across blocks, eliminates redundant reshuffles, and enforces hazmat and reefer zone safety.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="section" id="how-it-works" style="margin-top:2.5rem;padding:2.5rem;background:#ffffff;border:1px solid #f0e6df;border-radius:24px;box-shadow:0 8px 24px rgba(15,23,42,0.03)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1.5rem">
+        <div style="max-width:650px">
+          <span class="hero-pill-badge" style="display:inline-flex;padding:0.35rem 0.95rem;background:#fbf0ec;border:1px solid #f2d8cf;border-radius:999px;font-size:0.78rem;font-weight:600;color:#a34e36;margin-bottom:0.75rem">End-to-End Simulation Loop</span>
+          <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.85rem;margin:0 0 0.75rem;color:#0f172a">Simulate, Audit, and Validate in Minutes</h2>
+          <p style="color:#64748b;font-size:0.95rem;line-height:1.6;margin:0">
+            Every operational plan proposed by the AI agents is tested inside a high-fidelity SimPy discrete-event simulation model, solved via OR-Tools integer programming, and audited against hard port safety constraints before any action is executed.
+          </p>
+        </div>
+        <div>
+          <a class="btn-hero-start" href="{{ url_for('auth.signup') }}">
+            Explore Live Twin &rarr;
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="section" id="about" style="margin-top:2.5rem;text-align:center;padding:2.5rem 1rem">
+      <p style="color:#64748b;font-size:0.9rem;max-width:760px;margin:0 auto">
+        Autonomous Port Digital Twin Coordinator &bull; Built with Flask, LangGraph, SimPy, Google Gemini and OR-Tools. Designed for modern autonomous maritime logistics.
+      </p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block public %}
+{{ self.content() }}
+{% endblock %}

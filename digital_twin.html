@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import emoji %}
+{% block title %}Digital Twin{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/digital_twin.css') }}">{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h1>Digital Twin</h1>
+    <p>A top-down view of the simulated port. Every ship, crane, truck and container you see is drawn from the recorded state of the SimPy simulation. Nothing is invented by the browser.</p></div>
+  <div class="btn-row">
+    {% if sim_id %}<a class="btn" href="{{ url_for('results.results', sim_id=sim_id) }}">View Results</a>{% endif %}
+    <a class="btn btn-primary" href="{{ url_for('scenarios.scenario') }}">Run a Scenario</a>
+  </div>
+</div>
+
+<div id="twinRoot" data-sim="{{ sim_id or '' }}" data-plan="{{ plan }}" data-autoplay="{{ '1' if autoplay else '0' }}">
+  <div id="twinMsg"></div>
+  <div id="twinBanner" class="twin-banner" hidden></div>
+
+  <div class="tabs" id="planTabs" role="tablist" aria-label="Plan to replay"></div>
+
+  <div class="kpi-strip" id="kpiStrip">
+    <div class="kpi-mini"><span class="l">Simulation time</span><b id="kTime">0 min</b><span class="s" id="kClock">0h 00m</span></div>
+    <div class="kpi-mini"><span class="l">Ships waiting</span><b id="kWaiting">0</b><span class="s" id="kShipsNote"></span></div>
+    <div class="kpi-mini"><span class="l">Cranes available</span><b id="kCranes">0</b><span class="s" id="kCranesNote"></span></div>
+    <div class="kpi-mini"><span class="l">Yard occupancy</span><b id="kYard">0%</b><span class="s" id="kYardNote"></span></div>
+    <div class="kpi-mini"><span class="l">Truck queue</span><b id="kQueue">0</b><span class="s" id="kQueueNote"></span></div>
+    <div class="kpi-mini"><span class="l">Container moves</span><b id="kMoves">0</b><span class="s" id="kMovesNote"></span></div>
+    <div class="kpi-mini"><span class="l">Active disruptions</span><b id="kDis">0</b><span class="s" id="kDisNote"></span></div>
+  </div>
+
+  <div class="twin-layout">
+    <div>
+      <div class="card twin-card">
+        <div class="twin-viewport" id="viewport"><div class="twin-stage" id="stage" aria-label="Top-down view of the simulated port"></div></div>
+        <div class="controls" role="group" aria-label="Playback controls">
+          <button class="btn btn-sm" id="btnStart" type="button" title="Back to start" aria-label="Back to start">&#9198;</button>
+          <button class="btn btn-sm" id="btnBack" type="button" title="Step back" aria-label="Step back">&#9664;</button>
+          <button class="btn btn-primary btn-sm" id="btnPlay" type="button" style="min-width:5.5rem">&#9654; Play</button>
+          <button class="btn btn-sm" id="btnFwd" type="button" title="Step forward" aria-label="Step forward">&#9654;</button>
+          <button class="btn btn-sm" id="btnNextEvt" type="button" title="Jump to next key event">Next event &#9197;</button>
+          <label class="speed" for="speed">Speed
+            <select id="speed"><option value="0.5">0.5×</option><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option><option value="8">8×</option></select></label>
+          <span class="muted small" id="frameInfo"></span>
+        </div>
+        <div class="slider-wrap">
+          <div class="dis-track" id="disTrack" aria-hidden="true"></div>
+          <input type="range" id="slider" min="0" max="0" value="0" step="1" aria-label="Simulation timeline">
+        </div>
+        <div class="legend">
+          <span><i class="lg lg-work"></i>crane working</span><span><i class="lg lg-idle"></i>idle</span>
+          <span><i class="lg lg-block"></i>blocked (yard full)</span><span><i class="lg lg-down"></i>broken down / maintenance</span>
+          <span><i class="lg lg-surge"></i>surge truck</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Yard occupancy over time</h3><span class="muted small">Blue = stored containers · light blue = space reserved for batches being lifted · dashed = capacity</span></div>
+        <div id="yardChart" class="chart chart-sm"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" id="metricsCard">
+        <div class="card-head"><h3>Plan results <span class="muted small" id="metricsPlan"></span></h3></div>
+        <div id="metricsBody" class="metric-grid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Inspector</h3><span class="muted small">Click a ship, crane, truck or yard zone</span></div>
+        <div id="inspector"><div class="empty" style="padding:1.2rem">{{ emoji('search', 44) }}<p style="margin:0">Select something in the port to see its details.</p></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Event log</h3>
+          <label class="checkbox small"><input type="checkbox" id="allEvents"> Show every event</label></div>
+        <div id="eventLog" class="event-log" aria-live="off"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/digital_twin.js') }}"></script>
+{% endblock %}

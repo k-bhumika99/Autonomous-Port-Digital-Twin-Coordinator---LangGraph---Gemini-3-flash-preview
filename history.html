@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import badge, emoji %}
+{% block title %}Simulation History{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Simulation History</h1><p>Every scenario you ran is saved, so you can reopen results, agent reports and the Digital Twin without re-running anything.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('scenarios.scenario') }}">Run Another Scenario</a></div>
+<div class="card">
+{% if sims %}
+<div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>Scenario</th><th>Status</th><th>Recommended plan</th><th class="num">Objective</th><th>Human approval</th><th>Started</th><th>Open</th></tr></thead><tbody>
+{% for s in sims %}<tr>
+  <td>{{ s.id }}</td><td><b>{{ s.scenario_name }}</b><div class="small muted">{{ s.scenario_kind|replace('_',' ') }}</div></td>
+  <td>{{ badge(s.status) }}{% if s.status == 'running' %}<div class="small muted">{{ s.progress }}%</div>{% endif %}</td>
+  <td>{{ s.recommended_plan or '-' }}</td><td class="num">{{ s.objective_value if s.objective_value is not none else '-' }}</td>
+  <td>{{ badge(s.approval_status) }}</td><td class="small">{{ s.started_at }}</td>
+  <td class="btn-row"><a class="btn btn-sm" href="{{ url_for('results.results', sim_id=s.id) }}">Results</a>
+    {% if s.status in ('completed','no_feasible_plan') %}<a class="btn btn-sm" href="{{ url_for('digital_twin.digital_twin', sim=s.id) }}">Digital Twin</a>{% endif %}</td>
+</tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="empty">{{ emoji('clipboard', 60) }}<p>No simulations yet.</p><a class="btn btn-primary" href="{{ url_for('scenarios.scenario') }}">Set up your first scenario</a></div>{% endif %}
+</div>
+{% endblock %}

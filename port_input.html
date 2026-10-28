@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import emoji %}
+{% block title %}Port Input{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Port Input</h1><p>Describe the simulated port. Every ship, crane and truck can be different. All values are <b>synthetic</b>: times are minutes after simulation start, crane speed is containers per hour.</p></div>
+  <div class="btn-row">
+    <button class="btn" id="btnSample" type="button">Load Sample Port Data</button>
+    <button class="btn" id="btnReset" type="button">Reset Form</button>
+    <button class="btn btn-primary" id="btnSave" type="button">Save Port Configuration</button>
+  </div>
+</div>
+<div id="msgBox" role="alert" aria-live="polite"></div>
+<script type="application/json" id="cfgData">{{ config|tojson }}</script>
+
+<div class="card">
+  <div class="card-head"><h2>Port &amp; resource summary</h2><span class="muted small">Counts update automatically from the tables below, so they can never disagree.</span></div>
+  <div class="form-grid" style="margin-bottom:1rem">
+    <div><label for="portName">Port name</label><input id="portName" type="text" maxlength="60"></div>
+    <div><label for="gates">Truck loading lanes (gates)</label><input id="gates" type="number" min="1" max="20"></div>
+  </div>
+  <div class="grid grid-5" id="counts">
+    <div class="card kpi">{{ emoji('ship', 36) }}<div><div class="v" id="cShips">0</div><div class="l">Ships</div></div></div>
+    <div class="card kpi">{{ emoji('anchor', 36) }}<div><div class="v" id="cBerths">0</div><div class="l">Berths</div></div></div>
+    <div class="card kpi">{{ emoji('crane', 36) }}<div><div class="v" id="cCranes">0</div><div class="l">Cranes</div></div></div>
+    <div class="card kpi">{{ emoji('container', 36) }}<div><div class="v" id="cSpaces">0</div><div class="l">Storage spaces</div></div></div>
+    <div class="card kpi">{{ emoji('truck', 36) }}<div><div class="v" id="cTrucks">0</div><div class="l">Trucks</div></div></div>
+  </div>
+</div>
+
+<div class="card"><div class="card-head"><div><h2>Berths</h2><p class="muted small" style="margin:0">One berth hosts one ship at a time.</p></div><button class="btn btn-sm" data-add="berth" type="button">+ Add berth</button></div>
+  <div class="table-wrap"><table class="data"><thead><tr><th>Berth ID</th><th>Name</th><th></th></tr></thead><tbody id="tbBerths"></tbody></table></div></div>
+
+<div class="card"><div class="card-head"><div><h2>Ships</h2><p class="muted small" style="margin:0">Priority 1 = highest. Leave "compatible berths" empty if any berth works (comma-separated IDs otherwise).</p></div><button class="btn btn-sm" data-add="ship" type="button">+ Add ship</button></div>
+  <div class="table-wrap"><table class="data"><thead><tr><th>Ship ID</th><th>Name</th><th>Arrival (min)</th><th>Containers to unload</th><th>Priority</th><th>Compatible berths</th><th></th></tr></thead><tbody id="tbShips"></tbody></table></div></div>
+
+<div class="card"><div class="card-head"><div><h2>Cranes</h2><p class="muted small" style="margin:0">A crane in "maintenance" is out of service for the whole simulation.</p></div><button class="btn btn-sm" data-add="crane" type="button">+ Add crane</button></div>
+  <div class="table-wrap"><table class="data"><thead><tr><th>Crane ID</th><th>Status</th><th>Containers / hour</th><th>Compatible berths</th><th></th></tr></thead><tbody id="tbCranes"></tbody></table></div></div>
+
+<div class="card"><div class="card-head"><h2>Container yard</h2></div>
+  <div class="form-grid">
+    <div><label for="yCap">Storage capacity (spaces)</label><input id="yCap" type="number" min="1"></div>
+    <div><label for="yOcc">Initially occupied spaces</label><input id="yOcc" type="number" min="0"></div>
+    <div><label for="yZones">Storage zones</label><input id="yZones" type="number" min="1" max="8"></div>
+    <div><label>Initial occupancy</label><div class="big-number" id="yPct">0%</div></div>
+  </div></div>
+
+<div class="card"><div class="card-head"><div><h2>Trucks</h2><p class="muted small" style="margin:0">Each truck arrives at the gate at its first-arrival time and makes several collection trips.</p></div><button class="btn btn-sm" data-add="truck" type="button">+ Add truck</button></div>
+  <details style="margin-bottom:.9rem"><summary>Quick generator: create N trucks with an arrival rate</summary>
+    <div class="form-grid" style="margin-top:.7rem">
+      <div><label for="gN">Number of trucks</label><input id="gN" type="number" min="1" max="60" value="12"></div>
+      <div><label for="gStart">First arrival (min)</label><input id="gStart" type="number" min="0" value="0"></div>
+      <div><label for="gGap">Minutes between arrivals</label><input id="gGap" type="number" min="0" value="15"></div>
+      <div><label for="gCap">Containers per trip</label><input id="gCap" type="number" min="1" value="10"></div>
+      <div><label for="gTrips">Trips per truck</label><input id="gTrips" type="number" min="1" max="50" value="8"></div>
+      <div><label for="gRound">Round trip (min)</label><input id="gRound" type="number" min="10" value="75"></div>
+      <div style="align-self:end"><button class="btn" id="btnGen" type="button">Replace trucks with these</button></div>
+    </div></details>
+  <div class="table-wrap"><table class="data"><thead><tr><th>Truck ID</th><th>First arrival (min)</th><th>Containers / trip</th><th>Trips</th><th>Round trip (min)</th><th>Available</th><th></th></tr></thead><tbody id="tbTrucks"></tbody></table></div></div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/port_input.js') }}"></script>{% endblock %}

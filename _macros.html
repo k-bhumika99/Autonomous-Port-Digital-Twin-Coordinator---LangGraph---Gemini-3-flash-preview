@@ -1,0 +1,63 @@
+{# Reusable Jinja macros: icons, badges, tables, charts, AI explanation, findings. #}
+{% macro icon(name) -%}
+{%- set p = {
+ 'grid': '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+ 'anchor': '<circle cx="12" cy="5" r="2.5"/><path d="M12 7.5V21M5 12H3a9 9 0 0018 0h-2M8 12h8"/>',
+ 'bolt': '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+ 'cube': '<path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/>',
+ 'ship': '<path d="M3 17l2 4h14l2-4-9-3z"/><path d="M12 14V4M12 4l5 4h-5M7 11h10"/>',
+ 'crane': '<path d="M4 21V8l8-5 8 5M4 8h16M12 3v5M16 8v6M14 14h4v3h-4z"/>',
+ 'box': '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+ 'truck': '<path d="M2 6h11v10H2zM13 10h4l4 3v3h-8"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+ 'route': '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3 3 0 000-6H9a3 3 0 010-6h7"/>',
+ 'shield': '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+ 'flag': '<path d="M5 21V4M5 4h12l-2 4 2 4H5"/>',
+ 'clock': '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ 'logout': '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>'
+} -%}
+<svg viewBox="0 0 24 24" aria-hidden="true">{{ p[name]|safe }}</svg>
+{%- endmacro %}
+
+{% macro emoji(name, size=40, cls='') -%}
+<img class="{{ cls }}" src="{{ url_for('static', filename='images/emoji/' ~ name ~ '.webp') }}" width="{{ size }}" height="{{ size }}" alt="" loading="lazy">
+{%- endmacro %}
+
+{% macro badge(status, text=None) -%}
+<span class="badge {{ status|lower|replace(' ', '_') }}">{{ text or {'blocked': 'Blocked by validation', 'no_feasible_plan': 'No feasible plan'}.get(status, status|replace('_',' ')|capitalize) }}</span>
+{%- endmacro %}
+
+{# Generic table: rows is a list of dicts, headers come from the keys. #}
+{% macro table(rows, empty='No data.', selected_key=None, selected_value=None) -%}
+{% if rows %}
+<div class="table-wrap"><table class="data">
+  <thead><tr>{% for k in rows[0].keys() %}<th>{{ k|replace('_', ' ')|capitalize }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr {% if selected_key and r.get(selected_key) == selected_value %}class="row-selected"{% endif %}>
+      {% for k, v in r.items() %}<td class="{{ 'num' if v is number else '' }}">
+        {%- if v is none %}-{% elif v is sameas true %}yes{% elif v is sameas false %}no
+        {%- elif v is number and v is not integer %}{{ '%.2f'|format(v) }}{% else %}{{ v }}{% endif -%}</td>{% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody></table></div>
+{% else %}<div class="empty">{{ empty }}</div>{% endif %}
+{%- endmacro %}
+
+{% macro chart(spec, id) -%}
+{% if spec %}<div class="chart" id="{{ id }}" data-chart='{{ spec|tojson|forceescape }}'></div>{% endif %}
+{%- endmacro %}
+
+{% macro findings(items) -%}
+{% for f in items %}<div class="finding {{ f.severity }}"><i class="dot"></i><div><b>{{ f.title }}</b><span>{{ f.detail }}</span></div></div>
+{% else %}<div class="empty">No findings.</div>{% endfor %}
+{%- endmacro %}
+
+{% macro explanation(ex) -%}
+{% if ex and ex.status == 'ok' and ex.text %}
+  <div class="explain"><h4>AI explanation <span class="badge ok">Gemini</span></h4>{{ ex.text }}
+  <div class="small muted" style="margin-top:.4rem">Written by Gemini from the simulation results only. Numbers come from the Digital Twin, not from the AI.</div></div>
+{% else %}
+  <div class="explain off"><h4>AI explanation unavailable</h4>{{ (ex.reason if ex and ex.reason else 'No AI explanation was generated.') }}
+  <div class="small" style="margin-top:.3rem">The deterministic summary, simulation, OR-Tools optimisation and validation above are unaffected.</div></div>
+{% endif %}
+{%- endmacro %}

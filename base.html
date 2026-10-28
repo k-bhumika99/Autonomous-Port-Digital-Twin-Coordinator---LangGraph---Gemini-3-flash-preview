@@ -1,0 +1,69 @@
+{% from '_macros.html' import icon, emoji %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Port Digital Twin{% endblock %} · Autonomous Port Digital Twin Coordinator</title>
+  <link rel="icon" href="{{ url_for('static', filename='images/emoji/anchor.webp') }}" type="image/webp">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/public_pages.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{{ 'app-body' if g.user else 'public-body' }}">
+{% if g.user %}
+<div class="app">
+  <button class="btn btn-sm menu-toggle" id="menuToggle" aria-label="Open menu">Menu</button>
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <a class="brand" href="{{ url_for('dashboard.dashboard') }}">{{ emoji('anchor', 34) }}<div><b>Port Digital Twin</b><span>Autonomous Coordinator</span></div></a>
+    {% for title, items in NAV %}
+    <div class="nav-group"><div class="nav-title">{{ title }}</div>
+      {% for ep, label, ic in items %}
+        <a class="nav-link {{ 'active' if endpoint == ep else '' }}" href="{{ url_for(ep) }}">{{ icon(ic) }}<span>{{ label }}</span></a>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <div class="nav-spacer"></div>
+    <div class="user-box"><b>{{ g.user.full_name }}</b><span class="muted">{{ g.user.email }}</span>
+      <form method="post" action="{{ url_for('auth.logout') }}" style="margin-top:.6rem">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm" type="submit">{{ icon('logout') }}<span>Logout</span></button>
+      </form></div>
+  </aside>
+  <main class="main" id="main">
+    {% include '_flash.html' %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+<header class="portai-header">
+  <div class="portai-header-inner">
+    <a class="portai-brand" href="{{ url_for('auth.home') }}">
+      <img class="portai-brand-logo" src="{{ url_for('static', filename='images/ui/logo.svg') }}" alt="PortAI Logo">
+      <div class="portai-brand-text">
+        <span class="portai-brand-title">PortAI</span>
+        <span class="portai-brand-sub">Autonomous Port Digital Twin</span>
+      </div>
+    </a>
+    <nav class="portai-nav">
+      <a class="portai-nav-link {{ 'active' if endpoint == 'auth.home' else '' }}" href="{{ url_for('auth.home') }}">Home</a>
+      <a class="portai-nav-link" href="{{ url_for('auth.home') }}#features">Features</a>
+      <a class="portai-nav-link" href="{{ url_for('auth.home') }}#how-it-works">How It Works</a>
+      <a class="portai-nav-link" href="{{ url_for('auth.home') }}#about">About</a>
+    </nav>
+    <div class="portai-actions">
+      <a class="btn-header-signin" href="{{ url_for('auth.signin') }}">Sign In</a>
+      <a class="btn-header-signup" href="{{ url_for('auth.signup') }}">Sign Up</a>
+    </div>
+  </div>
+</header>
+{% include '_flash.html' %}
+{% block public %}{% endblock %}
+{% endif %}
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

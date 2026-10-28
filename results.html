@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import emoji, badge, table, chart, findings, explanation %}
+{% block title %}Results #{{ sim.id }}{% endblock %}
+{% block content %}
+{% set d = sim.decision or {} %}
+{% set ss = d.scenario_summary or {} %}
+{% set trust = d.trust or {} %}
+{% set rc = d.recommended_changes or {} %}
+{% set sel = sim.recommended_plan %}
+{% set chosen = by_label.get(sel or 'A') %}
+{% set m = (chosen.result.metrics if chosen and chosen.result else {}) or {} %}
+
+<div class="page-head">
+  <div><h1>Final Results · Simulation #{{ sim.id }}</h1>
+    <p>{{ (sim.scenario.name if sim.scenario else '') or 'Disruption Scenario' }} · started {{ sim.started_at }} UTC · {{ badge(sim.status) }}</p></div>
+  <div class="btn-row">
+    <a class="btn" href="{{ url_for('digital_twin.digital_twin', sim=sim.id, autoplay=1) }}">View Digital Twin</a>
+    <a class="btn" href="{{ url_for('results.csv_export', sim_id=sim.id) }}">Download Results as CSV</a>
+    <a class="btn" href="{{ url_for('dashboard.dashboard') }}">Return to Dashboard</a>
+    <a class="btn btn-primary" href="{{ url_for('scenarios.scenario') }}">Run Another Scenario</a>
+  </div>
+</div>
+
+<div class="alert alert-info"><b>These results are simulated.</b> They come from a Digital Twin built on synthetic input data and are not verified real-port performance.</div>
+
+{% if sim.status in ('queued', 'running') %}
+  <div class="empty" id="waiting">{{ emoji('signal', 56) }}<p><b>The agents are still working</b> ({{ sim.stage }}, {{ sim.progress }}%). This page refreshes by itself.</p></div>
+  <script>setTimeout(function () { location.reload(); }, 2500);</script>
+{% elif sim.status == 'failed' %}
+  <div class="alert alert-error"><b>This run failed.</b> {{ sim.error or 'The workflow stopped unexpectedly.' }} Nothing was recommended. You can run the scenario again.</div>
+{% else %}
+
+<nav class="section-nav" aria-label="Sections">
+  <a href="#sA">A · Scenario</a><a href="#sB">B · Agents</a><a href="#sC">C · Plans</a><a href="#sD">D · Recommendation</a>
+  <a href="#sE">E · Metrics</a><a href="#sF">F · Improvement</a><a href="#sG">G · Trust</a><a href="#sH">H · Decision</a>
+</nav>
+
+{# ---------- H summary banner first so the answer is visible immediately ---------- #}
+<div class="card decision {{ '' if sel else 'bad' }}">
+  <div class="card-head"><h2>{% if sel %}Recommended: Plan {{ sel }} · {{ d.selected_name }}{% else %}No feasible plan found{% endif %}</h2>{{ badge(sim.status) }}</div>
+  {% if sel %}
+  <div class="grid grid-4">
+    <div><div class="big-number">{{ sim.objective_value if sim.objective_value is not none else '-' }}</div><div class="muted small">Objective J (lower is better)</div></div>
+    <div><div class="big-number">{{ '%.0f'|format(m.total_ship_wait_min) if m.total_ship_wait_min is not none else '-' }}<span class="small muted"> min</span></div><div class="muted small">Total ship waiting</div></div>
+    <div><div class="big-number">{{ m.completion_time_min if m.completion_time_min is not none else '-' }}<span class="small muted"> min</span></div><div class="muted small">Completion time</div></div>
+    <div><div class="big-number">{{ m.constraint_violations if m.constraint_violations is not none else '-' }}</div><div class="muted small">Constraint violations</div></div>
+  </div>
+  {% else %}
+  <p style="margin:0">{{ d.reasons|join(' ') if d.reasons else 'Every candidate plan was rejected by the validation checks, even after re-planning.' }} The system does not manufacture a recommendation when none is valid.</p>
+  {% endif %}
+</div>
+
+{# ================= A ================= #}
+<section id="sA" class="card" style="margin-top:1rem">
+  <div class="card-head"><h2>A · Scenario summary</h2></div>
+  <div class="grid grid-2">
+    <div>
+      <h4>Original port configuration</h4>
+      {% set c = ss.counts or {} %}
+      <table class="insp-table" style="width:100%;font-size:.88rem;border-collapse:collapse">
+        <tr><td class="muted">Port</td><td>{{ ss.port_name }}</td></tr>
+        <tr><td class="muted">Ships / berths</td><td>{{ c.ships }} / {{ c.berths }}</td></tr>
+        <tr><td class="muted">Cranes</td><td>{{ c.cranes }}</td></tr>
+        <tr><td class="muted">Containers to unload</td><td>{{ c.containers }}</td></tr>
+        <tr><td class="muted">Yard</td><td>{{ c.yard_initial }} / {{ c.yard_capacity }} occupied at start</td></tr>
+        <tr><td class="muted">Trucks / lanes</td><td>{{ c.trucks }} / {{ c.gates }}</td></tr>
+      </table>
+    </div>
+    <div>
+      <h4>Selected disruption{{ 's' if (ss.disruptions or [])|length > 1 }}</h4>
+      <p style="margin:0 0 .4rem"><b>{{ ss.scenario_name }}</b> <span class="muted small">({{ (ss.scenario_kind or '')|replace('_', ' ') }})</span></p>
+      <ul class="log-list">{% for l in ss.disruptions or [] %}<li>{{ l }}</li>{% endfor %}</ul>
+      <p class="small muted" style="margin-top:.6rem">{{ ss.baseline_duration_note }}</p>
+    </div>
+  </div>
+</section>
+
+{# ================= B ================= #}
+<section id="sB" style="margin-top:1rem">
+  <h2>B · Agent findings</h2>
+  <div class="grid grid-2">
+  {% for key in agent_order %}
+    {% set a = agents.get(key) or {} %}{% set rep = a.report or {} %}{% set meta = agent_meta[key] %}
+    <div class="card">
+      <div class="card-head"><div class="agent-hero">{{ emoji(meta.emoji, 40) }}<div><h3 style="margin:0">{{ meta.name }}</h3>
+        <span class="muted small">{{ badge(a.status or 'pending') }}</span></div></div>
+        <a class="btn btn-sm" href="{{ url_for('agents.' ~ key, sim=sim.id) }}">Full report</a></div>
+      <p class="small" style="margin:0 0 .6rem">{{ rep.summary or 'No report.' }}</p>
+      {% set important = (rep.findings or [])|rejectattr('severity', 'equalto', 'info')|list %}
+      {% if important %}{{ findings(important[:3]) }}{% elif rep.findings %}{{ findings((rep.findings or [])[:1]) }}{% endif %}
+      {% for w in rep.warnings or [] %}<p class="small neg" style="margin:.4rem 0 0">⚠ {{ w }}</p>{% endfor %}
+    </div>
+  {% endfor %}
+  </div>
+</section>
+
+{# ================= C ================= #}
+<section id="sC" class="card" style="margin-top:1rem">
+  <div class="card-head"><h2>C · Candidate plan comparison</h2><span class="muted small">Every number below comes from a completed Digital Twin simulation of that plan.</span></div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Plan</th><th>Name</th><th class="num">Ship wait (min)</th><th class="num">Truck wait (min)</th><th class="num">Crane util. %</th><th class="num">Max yard %</th><th class="num">Completion (min)</th><th class="num">Violations</th><th>Feasible</th><th class="num">Objective J</th></tr></thead>
+    <tbody>
+    {% for c in candidates %}{% set cm = c.result.metrics or {} %}
+      <tr {% if c.label == sel %}class="row-selected"{% endif %}>
+        <td><b>{{ c.label }}</b>{% if c.label == 'A' %} <span class="muted small">(original)</span>{% endif %}{% if c.label == sel %} ★{% endif %}</td><td>{{ c.name }}</td>
+        <td class="num">{{ '%.1f'|format(cm.total_ship_wait_min) if cm.total_ship_wait_min is not none else '-' }}</td>
+        <td class="num">{{ '%.1f'|format(cm.total_truck_wait_min) if cm.total_truck_wait_min is not none else '-' }}</td>
+        <td class="num">{{ '%.1f'|format(cm.avg_crane_utilization_pct) if cm.avg_crane_utilization_pct is not none else '-' }}</td>
+        <td class="num">{{ '%.1f'|format(cm.max_yard_occupancy_pct) if cm.max_yard_occupancy_pct is not none else '-' }}</td>
+        <td class="num">{{ cm.completion_time_min if cm.completion_time_min is not none else 'unfinished' }}</td>
+        <td class="num">{{ cm.constraint_violations if cm.constraint_violations is not none else '-' }}</td>
+        <td>{{ badge('completed' if c.feasible else 'blocked', 'Feasible' if c.feasible else ('Rejected' if c.feasible is not none else 'Not validated')) }}</td>
+        <td class="num">{{ c.objective if c.objective is not none else '-' }}</td></tr>
+    {% else %}<tr><td colspan="10"><div class="empty">No plans were simulated.</div></td></tr>{% endfor %}
+    </tbody></table></div>
+  {% set xs = [] %}{% set objs = [] %}{% set sw = [] %}{% set tw = [] %}
+  {% for c in candidates %}{% set _ = xs.append('Plan ' ~ c.label) %}{% set _ = objs.append(c.objective) %}
+    {% set _ = sw.append(c.result.metrics.total_ship_wait_min) %}{% set _ = tw.append(c.result.metrics.total_truck_wait_min) %}{% endfor %}
+  {% if candidates %}
+  <div class="grid grid-2" style="margin-top:1rem">
+    <div>{{ chart({'type': 'bar', 'title': 'Objective J per plan (lower is better)', 'x': xs, 'series': [{'name': 'J', 'values': objs}]}, 'ch-obj') }}</div>
+    <div>{{ chart({'type': 'bar', 'title': 'Waiting time per plan (min)', 'x': xs, 'series': [{'name': 'Ship waiting', 'values': sw}, {'name': 'Truck waiting', 'values': tw}]}, 'ch-wait') }}</div>
+  </div>{% endif %}
+  <p class="small muted" style="margin:.6rem 0 0">Plan A is the original schedule. Plans with "Rejected" violated a hard constraint and were excluded from the choice. <a href="{{ url_for('agents.planning', sim=sim.id) }}">How the plans were built</a>.</p>
+</section>
+
+{# ================= D ================= #}
+<section id="sD" class="card" style="margin-top:1rem">
+  <div class="card-head"><h2>D · Recommended plan</h2></div>
+  {% if sel and rc %}
+  <p style="margin:0 0 .8rem"><b>Plan {{ rc.label }} · {{ rc.name }}.</b> {{ rc.description }}</p>
+  <div class="grid grid-2">
+    <div><h4>Resources reassigned</h4><ul class="log-list">{% for x in rc.resources_reassigned %}<li>{{ x }}</li>{% endfor %}</ul>
+      <h4 style="margin-top:.8rem">Ship scheduling changes</h4><ul class="log-list">{% for x in rc.ship_scheduling %}<li>{{ x }}</li>{% endfor %}</ul></div>
+    <div><h4>Truck adjustments</h4><ul class="log-list">{% for x in rc.truck_adjustments %}<li>{{ x }}</li>{% endfor %}</ul>
+      <h4 style="margin-top:.8rem">Yard adjustments</h4><ul class="log-list">{% for x in rc.yard_adjustments %}<li>{{ x }}</li>{% endfor %}</ul></div>
+  </div>
+  <h4 style="margin-top:.9rem">Why this plan was selected</h4>
+  <ul class="log-list">{% for r in d.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+  {% else %}<div class="empty">No plan is recommended for this scenario.</div>{% endif %}
+</section>
+
+{# ================= E ================= #}
+<section id="sE" class="card" style="margin-top:1rem">
+  <div class="card-head"><h2>E · Performance metrics</h2><span class="muted small">Plan {{ sel or 'A (original schedule, nothing recommended)' }}, simulated</span></div>
+  <div class="grid grid-4">
+    {% for label, val, unit in [
+      ('Total ship waiting', m.total_ship_wait_min, 'min'), ('Average ship waiting', m.avg_ship_wait_min, 'min'),
+      ('Total truck waiting', m.total_truck_wait_min, 'min'), ('Average truck waiting', m.avg_truck_wait_min, 'min'),
+      ('Avg crane utilization', m.avg_crane_utilization_pct, '%'), ('Max yard occupancy', m.max_yard_occupancy_pct, '%'),
+      ('Container throughput', m.throughput_per_hour, 'containers/h'), ('Completion time', m.completion_time_min, 'min'),
+      ('Constraint violations', m.constraint_violations, '')] %}
+    <div class="card kpi" style="padding:.8rem 1rem"><div><div class="v" style="font-size:1.3rem">{% if val is none %}-{% elif val is number and val is not integer %}{{ '%.1f'|format(val) }}{% else %}{{ val }}{% endif %}<span class="small muted"> {{ unit }}</span></div><div class="l">{{ label }}</div></div></div>
+    {% endfor %}
+  </div>
+  {% if m.crane_utilization %}<h4 style="margin-top:1rem">Crane utilization</h4>
+  <div class="grid grid-4">{% for cid, u in m.crane_utilization.items() %}<div><div class="small"><b>{{ cid }}</b> · {{ '%.1f'|format(u) }}%</div><div class="meter"><i style="width:{{ [u, 100]|min }}%"></i></div></div>{% endfor %}</div>{% endif %}
+</section>
+
+{# ================= F ================= #}
+<section id="sF" class="card" style="margin-top:1rem">
+  <div class="card-head"><h2>F · Improvement analysis</h2><span class="muted small">Recommended plan versus the original schedule (Plan A)</span></div>
+  {% if d.improvement %}
+  <div class="table-wrap"><table class="data"><thead><tr><th>Metric</th><th class="num">Original (A)</th><th class="num">Recommended</th><th class="num">Improvement</th><th>Verdict</th></tr></thead><tbody>
+  {% for r in d.improvement %}
+    <tr><td>{{ r.label }} <span class="muted small">({{ r.direction }})</span></td><td class="num">{{ r.baseline if r.baseline is not none else '-' }}</td><td class="num">{{ r.candidate if r.candidate is not none else '-' }}</td>
+      <td class="num {% if r.improvement_percent is not none %}{{ 'pos' if r.improvement_percent > 0 else ('neg' if r.improvement_percent < 0 else '') }}{% endif %}">{% if r.improvement_percent is not none %}{{ '%+.1f'|format(r.improvement_percent) }}%{% else %}n/a{% endif %}</td>
+      <td>{{ r.verdict }}</td></tr>
+  {% endfor %}</tbody></table></div>
+  <p class="small muted" style="margin:.6rem 0 0"><code>improvement % = (baseline − candidate) / baseline × 100</code> for metrics where lower is better. If the baseline is 0 the percentage is not defined, so it is shown as 0 and labelled.</p>
+  {% else %}<div class="empty">No improvement analysis: no plan was recommended.</div>{% endif %}
+</section>
+
+{# ================= G ================= #}
+<section id="sG" class="card" style="margin-top:1rem">
+  <div class="card-head"><h2>G · Trust and validation</h2></div>
+  <div class="grid grid-4">
+    <div class="card kpi"><div><div class="v">{{ trust.plans_tested }}</div><div class="l">Candidate plans tested</div></div></div>
+    <div class="card kpi"><div><div class="v">{{ trust.plans_feasible }}</div><div class="l">Feasible plans</div></div></div>
+    <div class="card kpi"><div><div class="v">{{ trust.simulations_completed }}/{{ trust.simulations_total }}</div><div class="l">Simulations completed</div></div></div>
+    <div class="card kpi"><div><div class="v">{{ trust.replan_attempts }}</div><div class="l">Re-planning rounds</div></div></div>
+  </div>
+  <h4 style="margin-top:1rem">Constraint validation per plan</h4>
+  <div class="table-wrap"><table class="data"><thead><tr><th>Plan</th><th>Checks passed</th><th>Feasible</th></tr></thead><tbody>
+    {% for label, ch in (trust.checks or {}).items()|sort %}<tr {% if label == sel %}class="row-selected"{% endif %}><td>{{ label }}</td><td>{{ ch.passed }} / {{ ch.total }}</td><td>{{ badge('completed' if ch.feasible else 'blocked', 'Feasible' if ch.feasible else 'Rejected') }}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <p class="small" style="margin:.7rem 0 0">Simulation completion: <b>{{ 'all simulations ran to completion' if trust.all_simulations_completed else 'at least one simulation did not finish' }}</b>.
+    <a href="{{ url_for('agents.validation', sim=sim.id) }}">Open the full validation checklist</a>.</p>
+  {% if trust.failed_agents %}<div class="alert alert-warn" style="margin-top:.7rem">Agents that failed: {{ trust.failed_agents|join(', ') }}. The workflow continued with the data that was available.</div>{% endif %}
+  {% for n in trust.incomplete_notes or [] %}<div class="alert alert-warn" style="margin-top:.5rem">{{ n }}</div>{% endfor %}
+  <details style="margin-top:.8rem"><summary><b>Simulation assumptions</b></summary><ul class="log-list" style="margin-top:.5rem">{% for a in trust.assumptions or [] %}<li>{{ a }}</li>{% endfor %}</ul></details>
+  <div class="alert alert-info" style="margin:.9rem 0 0">{{ trust.disclaimer }}</div>
+</section>
+
+{# ================= H ================= #}
+<section id="sH" class="card" style="margin-top:1rem">
+  <div class="card-head"><h2>H · Final decision</h2>{{ badge(sim.approval_status or 'pending', 'Human approval: ' ~ (sim.approval_status or 'pending')) }}</div>
+  {% if sel %}
+  <p style="margin:0 0 .5rem"><b>Selected plan: {{ sel }} · {{ d.selected_name }}</b> · objective value <b>{{ sim.objective_value }}</b></p>
+  {% if d.objective %}<div class="table-wrap" style="margin-bottom:.8rem"><table class="data"><thead><tr><th>Term</th><th class="num">Weight</th><th class="num">Value</th><th class="num">Contribution</th></tr></thead><tbody>
+    {% for name, t in (d.objective.terms or {}).items() %}<tr><td>{{ name|replace('_', ' ')|capitalize }}</td><td class="num">{{ t.weight }}</td><td class="num">{{ t.value }} {{ t.unit }}</td><td class="num">{{ t.contribution }}</td></tr>{% endfor %}
+    <tr><td><b>Total J</b></td><td></td><td></td><td class="num"><b>{{ d.objective.total }}</b></td></tr></tbody></table></div>{% endif %}
+  <h4>Trade-offs</h4>
+  <ul class="log-list">{% for t in d.tradeoffs or [] %}<li>{{ t }}</li>{% else %}<li>No significant trade-off was found.</li>{% endfor %}</ul>
+  {% endif %}
+  <h4 style="margin-top:.8rem">Warnings and unresolved issues</h4>
+  <ul class="log-list">{% for w in d.warnings or [] %}<li>{{ w }}</li>{% else %}<li>None.</li>{% endfor %}</ul>
+  <p class="small muted" style="margin:.7rem 0">{{ d.optimality_note }}</p>
+  <div style="margin:1rem 0">{{ explanation(d.explanation) }}</div>
+
+  {% if sim.status == 'completed' %}
+  <form method="post" action="{{ url_for('results.approval', sim_id=sim.id) }}" class="btn-row">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span class="muted small">Your decision (nothing is changed in a real port):</span>
+    <button class="btn btn-green" name="decision" value="approved" type="submit" {{ 'disabled' if sim.approval_status == 'approved' }}>Approve recommendation</button>
+    <button class="btn btn-danger" name="decision" value="rejected" type="submit" {{ 'disabled' if sim.approval_status == 'rejected' }}>Reject</button>
+    {% if sim.approval_status != 'pending' %}<button class="btn btn-ghost" name="decision" value="pending" type="submit">Reset to pending</button>{% endif %}
+  </form>
+  {% endif %}
+  <h4 style="margin-top:1.2rem">Individual agent reports</h4>
+  <div class="btn-row">{% for key in agent_order %}<a class="btn btn-sm" href="{{ url_for('agents.' ~ key, sim=sim.id) }}">{{ agent_meta[key].name.replace(' Agent', '') }}</a>{% endfor %}</div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}

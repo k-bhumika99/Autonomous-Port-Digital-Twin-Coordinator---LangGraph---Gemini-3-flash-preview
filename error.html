@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import emoji %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}{{ self.body() }}{% endblock %}
+{% block public %}{{ self.body() }}{% endblock %}
+{% block body %}
+<div class="container" style="padding:4rem 1rem;text-align:center">
+  {{ emoji('warning', 72) }}
+  <h1>{{ title }}</h1><p class="muted">{{ message }}</p>
+  <a class="btn btn-primary" href="{{ url_for('auth.home') }}">Back to start</a>
+</div>
+{% endblock %}

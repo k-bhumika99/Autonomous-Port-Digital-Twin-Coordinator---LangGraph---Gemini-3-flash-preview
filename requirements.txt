@@ -1,0 +1,11 @@
+Flask>=3.0
+Flask-WTF>=1.2
+python-dotenv>=1.0
+Werkzeug>=3.0
+pydantic>=2.5
+simpy>=4.1
+ortools>=9.9
+langgraph>=0.2
+google-genai>=1.0
+pandas>=2.1
+pytest>=8.0

@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import emoji %}
+{% block title %}Scenario Setup{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/loader.css') }}">
+<style>
+  .type-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .7rem; }
+  .type-card { position: relative; cursor: pointer; text-align: center; padding: .9rem .5rem; border: 2px solid var(--border);
+    border-radius: 14px; background: #fff; transition: .15s; font-weight: 600; font-size: .85rem; }
+  .type-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+  .type-card img { width: 44px; height: 44px; display: block; margin: 0 auto .35rem; filter: drop-shadow(0 4px 5px rgba(15,39,66,.16)); }
+  .type-card input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .type-card.active { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); }
+  .type-card:focus-within { outline: 3px solid rgba(29,99,216,.45); outline-offset: 2px; }
+  .block { border: 1px solid var(--border); border-radius: 12px; padding: 1rem; background: #fff; }
+  .block + .block { margin-top: .8rem; }
+  .block.off { background: #f8fafd; opacity: .55; }
+  .block-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .7rem; }
+  .block-head img { width: 30px; height: 30px; }
+  .block-head h3 { margin: 0; flex: 1; font-size: 1rem; }
+  .scn-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+  .summary-list { margin: 0; padding-left: 1.1rem; font-size: .9rem; }
+  .summary-list li { margin-bottom: .3rem; }
+  .sample-chip { text-align: left; }
+  .stat-row { display: flex; justify-content: space-between; padding: .35rem 0; border-bottom: 1px dashed var(--border); font-size: .88rem; }
+  .stat-row:last-child { border-bottom: 0; }
+  .details-pre { background: #f3f6fb; border-radius: 10px; padding: .7rem .9rem; font-size: .84rem; overflow-x: auto; }
+  @media (max-width: 1000px) { .scn-layout { grid-template-columns: 1fr; } .type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h1>Scenario Setup</h1>
+    <p>Choose what goes wrong, then run it. Six agents analyse the disruption, plans are simulated in the Digital Twin, and the Digital Twin page opens when the run finishes.</p></div>
+  <div class="btn-row">
+    <button class="btn" id="btnDetails" type="button">View Scenario Details</button>
+    <button class="btn" id="btnReset" type="button">Reset Scenario</button>
+    <button class="btn btn-primary btn-lg" id="btnRun" type="button">{{ emoji('rocket', 22) }} Run Scenario</button>
+  </div>
+</div>
+
+<div id="msgBox" role="alert" aria-live="polite"></div>
+<script type="application/json" id="cfgData">{{ config|tojson }}</script>
+<script type="application/json" id="samplesData">{{ samples|tojson }}</script>
+
+<div class="scn-layout">
+  <div>
+    <div class="card">
+      <div class="card-head"><h2>1 · Scenario type</h2><span class="muted small">Pick one disruption, or "Multiple" to combine several.</span></div>
+      <div class="type-grid" role="radiogroup" aria-label="Scenario type">
+        <label class="type-card active" data-kind="crane_breakdown">{{ emoji('crane', 44) }}<input type="radio" name="kind" value="crane_breakdown" checked>Crane breakdown</label>
+        <label class="type-card" data-kind="ship_delay">{{ emoji('ship', 44) }}<input type="radio" name="kind" value="ship_delay">Delayed ship arrival</label>
+        <label class="type-card" data-kind="yard_congestion">{{ emoji('container', 44) }}<input type="radio" name="kind" value="yard_congestion">Container yard congestion</label>
+        <label class="type-card" data-kind="truck_surge">{{ emoji('truck', 44) }}<input type="radio" name="kind" value="truck_surge">Truck arrival surge</label>
+        <label class="type-card" data-kind="multiple">{{ emoji('bolt', 44) }}<input type="radio" name="kind" value="multiple">Multiple disruptions</label>
+      </div>
+      <div style="margin-top:1rem">
+        <label for="scnName">Scenario name</label>
+        <input id="scnName" type="text" maxlength="80" placeholder="e.g. Crane C3 breakdown">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>2 · Disruption controls</h2><span class="muted small" id="controlsHint"></span></div>
+
+      <div class="block" data-block="crane_breakdown">
+        <div class="block-head">{{ emoji('crane', 30) }}<h3>Crane breakdown</h3>
+          <label class="checkbox multi-only" hidden><input type="checkbox" class="use"> Include</label></div>
+        <div class="form-grid">
+          <div><label for="cbCrane">Affected crane</label>
+            <select id="cbCrane">{% for c in config.cranes %}<option value="{{ c.id }}">{{ c.id }} · {{ c.rate_per_hour|int }}/h · {{ c.status }}</option>{% endfor %}</select></div>
+          <div><label for="cbStart">Breakdown starts (min)</label><input id="cbStart" type="number" min="0" value="60"></div>
+          <div><label for="cbDur">Repair time (min)</label><input id="cbDur" type="number" min="1" value="240"></div>
+        </div>
+        <p class="hint">The crane stops, even mid-lift, and is repaired after the repair time.</p>
+      </div>
+
+      <div class="block" data-block="ship_delay">
+        <div class="block-head">{{ emoji('ship', 30) }}<h3>Delayed ship arrival</h3>
+          <label class="checkbox multi-only" hidden><input type="checkbox" class="use"> Include</label></div>
+        <div class="form-grid">
+          <div><label for="sdShip">Affected ship</label>
+            <select id="sdShip">{% for s in config.ships %}<option value="{{ s.id }}" {{ 'selected' if loop.index == 2 else '' }}>{{ s.id }} · {{ s.name or s.id }} (t={{ s.arrival_min }})</option>{% endfor %}</select></div>
+          <div><label for="sdDelay">Delay (min)</label><input id="sdDelay" type="number" min="1" value="180"></div>
+        </div>
+        <p class="hint">The ship arrives later than scheduled, which can bunch arrivals together.</p>
+      </div>
+
+      <div class="block" data-block="yard_congestion">
+        <div class="block-head">{{ emoji('container', 30) }}<h3>Container yard congestion</h3>
+          <label class="checkbox multi-only" hidden><input type="checkbox" class="use"> Include</label></div>
+        <div class="form-grid">
+          <div><label for="ycPct">Target yard occupancy (%)</label><input id="ycPct" type="number" min="0" max="100" step="1" value="90"></div>
+          <div><label for="ycExtra">Extra containers already in yard</label><input id="ycExtra" type="number" min="0" value="0"></div>
+        </div>
+        <p class="hint">Port yard capacity is <b>{{ config.yard.capacity }}</b> spaces, currently {{ config.yard.initial_occupied }} occupied. A nearly full yard can block cranes.</p>
+      </div>
+
+      <div class="block" data-block="truck_surge">
+        <div class="block-head">{{ emoji('truck', 30) }}<h3>Sudden increase in truck arrivals</h3>
+          <label class="checkbox multi-only" hidden><input type="checkbox" class="use"> Include</label></div>
+        <div class="form-grid">
+          <div><label for="tsN">Additional trucks</label><input id="tsN" type="number" min="1" max="200" value="10"></div>
+          <div><label for="tsA">Arrival window starts (min)</label><input id="tsA" type="number" min="0" value="120"></div>
+          <div><label for="tsB">Arrival window ends (min)</label><input id="tsB" type="number" min="0" value="240"></div>
+        </div>
+        <p class="hint">Extra trucks (one trip each) arrive evenly spread across the window.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>3 · Quick examples</h2><span class="muted small">Loads the form; you can still edit it.</span></div>
+      <div class="grid grid-3" id="samples"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-head"><h2>Current port state</h2><a class="small" href="{{ url_for('port_input.port_input') }}">Edit port</a></div>
+      <div class="stat-row"><span>{{ config.name }}</span><b></b></div>
+      <div class="stat-row"><span>Ships</span><b>{{ config.ships|length }}</b></div>
+      <div class="stat-row"><span>Berths</span><b>{{ config.berths|length }}</b></div>
+      <div class="stat-row"><span>Cranes (operational)</span><b>{{ config.cranes|selectattr('status', 'equalto', 'operational')|list|length }} / {{ config.cranes|length }}</b></div>
+      <div class="stat-row"><span>Containers to unload</span><b>{{ config.ships|sum(attribute='containers') }}</b></div>
+      <div class="stat-row"><span>Yard occupancy at start</span><b>{{ config.yard.initial_occupied }} / {{ config.yard.capacity }}</b></div>
+      <div class="stat-row"><span>Trucks (available)</span><b>{{ config.trucks|selectattr('available')|list|length }}</b></div>
+      <div class="stat-row"><span>Truck lanes</span><b>{{ config.gates }}</b></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Selected disruption</h2></div>
+      <ul class="summary-list" id="selSummary"></ul>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary><b>Objective weights</b> <span class="muted small">(how the Validation Agent scores plans)</span></summary>
+        <p class="small muted" style="margin-top:.6rem"><code>J = w_ship × ship waiting (h) + w_truck × truck waiting (h) + w_completion × completion time (h) + w_changes × plan changes</code>. Lower J is better.</p>
+        <div class="form-grid">
+          <div><label for="wShip">Ship waiting</label><input id="wShip" type="number" min="0" max="1000" step="0.05" value="{{ weights.w_ship_wait }}"></div>
+          <div><label for="wTruck">Truck waiting</label><input id="wTruck" type="number" min="0" max="1000" step="0.05" value="{{ weights.w_truck_wait }}"></div>
+          <div><label for="wComp">Completion time</label><input id="wComp" type="number" min="0" max="1000" step="0.05" value="{{ weights.w_completion }}"></div>
+          <div><label for="wChg">Resource usage (plan changes)</label><input id="wChg" type="number" min="0" max="1000" step="0.05" value="{{ weights.w_changes }}"></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="card hidden" id="detailsCard">
+      <div class="card-head"><h2>Scenario details</h2></div>
+      <div id="detailsBody"></div>
+    </div>
+  </div>
+</div>
+
+{# ---- loading overlay: "Generating Digital Port Twins..." (six emoji agents) ---- #}
+<div class="loader-overlay" id="loader" role="dialog" aria-modal="true" aria-labelledby="loaderTitle" hidden>
+  <div class="loader-card">
+    <div class="loader-emojis" id="loaderEmojis">
+      {% for key, a in AGENTS.items() %}
+      <div class="agent-emoji pending" data-agent="{{ key }}">{{ emoji(a.emoji, 58) }}<span class="agent-badge"></span><small>{{ ['Ships', 'Cranes', 'Yard', 'Trucks', 'Planner', 'Validator'][loop.index0] }}</small></div>
+      {% endfor %}
+    </div>
+    <h2 class="loader-title" id="loaderTitle"><span class="tick">&#10003;</span><span id="loaderText">Generating Digital Port Twins...</span></h2>
+    <div class="loader-stage" id="loaderStage" aria-live="polite">Starting the workflow</div>
+    <div class="loader-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="loaderBarWrap"><i id="loaderBar"></i></div>
+    <div class="loader-error hidden" id="loaderError"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/scenario.js') }}"></script>
+{% endblock %}
